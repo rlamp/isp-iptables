@@ -123,39 +123,46 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 # (2) TODO: Allow all outgoing packets that belong to ESTABLISHED or RELATED connections.
-
+iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 # (3) Allow outgoing DNS requests to the DNS server in variable NAMESERVER
 iptables -A OUTPUT -p udp -d $NAMESERVER --dport 53 -m state --state NEW -j ACCEPT
 
 # (4) TODO: Allow outgoing SSH connections to remote SSH servers
-
+# iptables -A OUTPUT -p tcp --dport 22 -m state --state NEW -j ACCEPT
 
 # (5) TODO: Allow incomming connections to local SSH server
-
+# iptables -A INPUT -p tcp --dport 22 -m state --state NEW -j ACCEPT
 
 # (6) TODO: Allow outgoing HTTP requests 
-
+# iptables -A OUTPUT -p tcp --dport 80 -m state --state NEW -j ACCEPT
 
 # (7) TODO: Allow incoming HTTP requests destined to local HTTP server
+# iptables -A INPUT -p tcp --dport 80 -m state --state NEW -j ACCEPT
 
 
 # (8) TODO: Allow outgoing HTTPS requests 
+# iptables -A OUTPUT -p tcp --dport 443 -m state --state NEW -j ACCEPT
 
 
 # (9) TODO: Allow incoming HTTPS requests destined to local HTTP server
+# iptables -A INPUT -p tcp --dport 443 -m state --state NEW -j ACCEPT
 
 
 # (10) TODO: Allow outgoing ping requests
+iptables -A OUTPUT -p icmp --icmp-type echo-request -m state --state NEW -j ACCEPT
 
 
 # (11) TODO: Allow incoming ping requests
+iptables -A INPUT -i enp0s3 -p icmp --icmp-type echo-request -m limit --limit 10/minute -m state --state NEW -j ACCEPT
+iptables -A INPUT -p icmp --icmp-type echo-request -m state --state NEW -j ACCEPT
 
 
 # (12) TODO: Compress rules 4-9 into two iptables commands using
 # "-m multiport" and "--ports" switches.
 # Make sure to comment rules 4-9 before testing.
-
+iptables -A INPUT  -p tcp -m multiport --dports 22,80,443 -m state --state NEW -j ACCEPT
+iptables -A OUTPUT -p tcp -m multiport --dports 22,80,443 -m state --state NEW -j ACCEPT
 
 ### FORWARDING RULES
 
@@ -163,7 +170,7 @@ iptables -A OUTPUT -p udp -d $NAMESERVER --dport 53 -m state --state NEW -j ACCE
 iptables -t nat -A POSTROUTING -o $INET_IFACE -j MASQUERADE
 
 # (13) TODO: Allow routing of packets that belong to ESTABLISHED or RELATED connections.
-
+iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 # (14) Forward pings
 iptables -A FORWARD -p icmp --icmp-type echo-request -m state --state NEW  -j ACCEPT
@@ -172,7 +179,14 @@ iptables -A FORWARD -p icmp --icmp-type echo-request -m state --state NEW  -j AC
 iptables -A FORWARD -o $INET_IFACE -p udp -m multiport --ports 53 -m state --state NEW -j ACCEPT
 
 # (16) TODO: Forward HTTP, HTTPS and SSH traffic from client_subnet to Internet and to server_subnet
+iptables -A FORWARD -i enp0s8 -p tcp -m multiport --ports 22,80,443 -m state --state NEW -j ACCEPT
 
+# Additional tasks
+iptables -A FORWARD -o enp0s8 -p tcp --dport 22 -m state --state NEW -j ACCEPT
+iptables -A FORWARD -o enp0s9 -p tcp --dport 22 -m state --state NEW -j ACCEPT
+
+FB=$(dig +noall +answer facebook.com | cut -f6 | xargs | tr " " ,)
+iptables -I FORWARD -d $IP -j DROP
 
 }
 
